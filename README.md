@@ -167,9 +167,7 @@ sudo clashctl status
 当前项目支持一键安装，在终端中执行以下命令即可完成安装：
 
 ```bash
-git clone --branch master --depth 1 https://github.com/wnlen/clash-for-linux.git \
-  && cd clash-for-linux \
-  && bash install.sh
+git clone --branch master --depth 1 https://github.com/wnlen/clash-for-linux.git && cd clash-for-linux && bash install.sh
 ```
 
 脚本会自动识别安装路径、创建低权限用户、检测端口冲突，并根据架构自动下载 Clash 内核（可通过 `CLASH_DOWNLOAD_URL_TEMPLATE` 自定义下载地址）。
