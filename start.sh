@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# 严格模式
+set -eo pipefail
+
+# --- DEBUG: 打印具体失败的行号和命令（systemd 下非常关键） ---
+trap 'rc=$?; echo "[ERR] rc=$rc line=$LINENO cmd=$BASH_COMMAND" >&2' ERR
+# 如需更详细：取消下一行注释
+# set -x
+# --- DEBUG end ---
 
 ############################################
 # Clash for Linux - start.sh (Full Version)
@@ -18,7 +25,12 @@ Server_Dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 加载.env变量文件
 # shellcheck disable=SC1090
-[ -f "$Server_Dir/.env" ] && source "$Server_Dir/.env"
+# --- source .env（不可信输入，必须放宽） ---
+if [ -f "$Server_Dir/.env" ]; then
+  set +u
+  source "$Server_Dir/.env" || echo "[WARN] failed to source .env" >&2
+  set -u
+fi
 
 # systemd 模式开关（必须在 set -u 下安全）
 SYSTEMD_MODE="${SYSTEMD_MODE:-false}"
