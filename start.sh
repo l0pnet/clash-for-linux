@@ -369,6 +369,19 @@ if [ "$SKIP_CONFIG_REBUILD" != "true" ]; then
     done
   fi
 
+  # --- GUARANTEE: make sure runtime config exists after download ---
+  CONFIG_FILE="${CONFIG_FILE:-$Temp_Dir/config.yaml}"
+  mkdir -p "$Temp_Dir" || true
+
+  if [ "$ReturnStatus" -eq 0 ] && [ -s "$Temp_Dir/clash.yaml" ]; then
+    # 默认将订阅当作完整配置写入运行态 config
+    cp -f "$Temp_Dir/clash.yaml" "$CONFIG_FILE"
+    force_write_secret "$CONFIG_FILE" || true
+    echo "[INFO] Runtime config generated: $CONFIG_FILE (size=$(wc -c <"$CONFIG_FILE" 2>/dev/null || echo 0))"
+  else
+    echo "[WARN] Download did not produce clash.yaml (rc=$ReturnStatus), skip runtime config generation" >&2
+  fi
+
   if [ "$ReturnStatus" -eq 0 ]; then
     action "$Text3" /bin/true || true
   else
