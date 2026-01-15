@@ -249,7 +249,7 @@ SKIP_CONFIG_REBUILD=false
 # systemd 模式下若 URL 为空：直接兜底启动
 if [ "${SYSTEMD_MODE}" = "true" ] && [ -z "${URL:-}" ]; then
   echo -e "\033[33m[WARN]\033[0m SYSTEMD_MODE=true 且 CLASH_URL 为空，跳过订阅更新，使用本地兜底配置启动"
-  ensure_fallback_config
+  ensure_fallback_config || true
   SKIP_CONFIG_REBUILD=true
 fi
 
@@ -290,7 +290,7 @@ if [ "$SKIP_CONFIG_REBUILD" != "true" ]; then
     if [ "$SYSTEMD_MODE" = "true" ]; then
       action "$Text2（systemd 模式不退出，尝试使用旧配置/兜底配置）" /bin/false || true
       echo -e "\033[33m[WARN]\033[0m Subscribe check failed: http_code=${status_code:-unknown}, url=${URL}" >&2
-      ensure_fallback_config
+      ensure_fallback_config || true
       SKIP_CONFIG_REBUILD=true
     else
       if_success "$Text1" "$Text2" "$ReturnStatus"
@@ -363,7 +363,7 @@ if [ "$SKIP_CONFIG_REBUILD" != "true" ]; then
     if [ "$SYSTEMD_MODE" = "true" ]; then
       action "$Text4（systemd 模式：下载失败，使用旧配置/兜底配置继续启动）" /bin/false || true
       echo -e "\033[33m[WARN]\033[0m Download failed, will fallback. url=${URL}" >&2
-      ensure_fallback_config
+      ensure_fallback_config || true
       SKIP_CONFIG_REBUILD=true
     else
       if_success "$Text3" "$Text4（退出启动）" "$ReturnStatus"
