@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 作用：
 # - 将订阅内容转换成 Clash Meta / Mihomo 可用的完整 YAML 配置
-# - 默认使用 subconverter HTTP /sub 接口（最稳）
+# - 默认使用 subconverter HTTP /sub 接口（最稳：用 -G + --data-urlencode）
 # - 失败则跳过，不影响主流程
 #
 # 输入/输出约定：
@@ -25,12 +25,7 @@ OUT_FILE="${OUT_FILE:-$Temp_Dir/clash_config.yaml}"
 
 # “更先进”的默认：Clash Meta / Mihomo
 SUB_TARGET="${SUB_TARGET:-clashmeta}"   # 推荐 clashmeta（兼容面最广）
-SUB_UDP="${SUB_UDP:-true}"
-SUB_EMOJI="${SUB_EMOJI:-true}"
-SUB_SORT="${SUB_SORT:-true}"
-
-# 订阅原始 URL（你 .env 里 export CLASH_URL=...）
-SUB_URL="${CLASH_URL:-}"
+SUB_URL="${CLASH_URL:-}"               # 原始订阅 URL（.env 里 export CLASH_URL=...）
 
 # 0) 输入不存在就跳过
 if [ ! -s "$IN_FILE" ]; then
@@ -54,16 +49,14 @@ fi
 
 # 3) 没有原始 URL 就不转（subconverter 最稳是 url=... 拉取）
 if [ -z "${SUB_URL:-}" ]; then
-  echo "[WARN] CLASH_URL empty, cannot convert via /sub?url=..., skip"
+  echo "[WARN] CLASH_URL empty, cannot convert via /sub, skip"
   exit 0
 fi
-
-TMP_OUT="$Temp_Dir/.clash_config.converted.yaml"
-rm -f "$TMP_OUT" 2>/dev/null || true
 
 # 4) 调用 subconverter：用 -G + --data-urlencode，避免 url 参数里含 ? & 导致 400
 #    注意：SUB_URL 必须是原始订阅 URL（例如 https://.../subscribe?token=xxx）
 TMP_OUT="${OUT_FILE}.tmp"
+rm -f "$TMP_OUT" 2>/dev/null || true
 
 set +e
 curl -fsSLG "${SUBCONVERTER_URL}/sub" \
@@ -73,28 +66,13 @@ curl -fsSLG "${SUBCONVERTER_URL}/sub" \
 rc=$?
 set -e
 
-if [ $rc -ne 0 ] || [ ! -s "${TMP_OUT}" ]; then
-  echo "[WARN] convert failed (rc=${rc}), skip"
-  rm -f "${TMP_OUT}" 2>/dev/null || true
-  exit 0
-fi
-
-mv -f "${TMP_OUT}" "${OUT_FILE}"
-echo "[OK] converted via subconverter -> ${OUT_FILE} (target=${SUB_TARGET})"
-
-# 5) 执行转换（失败则回退）
-set +e
-curl -fsSL --connect-timeout 3 -m 25 "$CONVERT_URL" -o "$TMP_OUT"
-rc=$?
-set -e
-
 if [ "$rc" -ne 0 ] || [ ! -s "$TMP_OUT" ]; then
-  echo "[WARN] convert failed (rc=$rc), keep original"
+  echo "[WARN] convert failed (rc=${rc}), skip"
   rm -f "$TMP_OUT" 2>/dev/null || true
   exit 0
 fi
 
 mv -f "$TMP_OUT" "$OUT_FILE"
-echo "[OK] converted via subconverter -> $OUT_FILE (target=${SUB_TARGET})"
+echo "[OK] converted via subconverter -> ${OUT_FILE} (target=${SUB_TARGET})"
 
 true
