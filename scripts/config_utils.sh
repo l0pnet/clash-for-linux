@@ -49,57 +49,138 @@ apply_tun_config() {
 }
 
 apply_mixin_config() {
-	local config_path="$1"
+
+	local config_path="
+"
+
 	local base_dir="${2:-$Server_Dir}"
+
 	local mixin_dir="${CLASH_MIXIN_DIR:-$base_dir/conf/mixin.d}"
+
 	local mixin_paths=()
 
+
+
 	if [ -n "${CLASH_MIXIN_PATHS:-}" ]; then
+
 		IFS=',' read -r -a mixin_paths <<< "$CLASH_MIXIN_PATHS"
+
 	fi
+
+
 
 	if [ -d "$mixin_dir" ]; then
+
 		while IFS= read -r -d '' file; do
+
 			mixin_paths+=("$file")
+
 		done < <(find "$mixin_dir" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print0 | sort -z)
+
 	fi
 
+
+
+	# 检查是否存在 yq 和 python3
+
+	local has_tools=false
+
+	if command -v yq >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+
+		has_tools=true
+
+	fi
+
+
+
 	for path in "${mixin_paths[@]}"; do
+
 		local trimmed
+
 		trimmed=$(trim_value "$path")
+
 		if [ -z "$trimmed" ]; then
+
 			continue
-		fi
-		if [ "${trimmed:0:1}" != "/" ]; then
-			trimmed="$base_dir/$trimmed"
+
 		fi
 
-		if [ -f "$trimmed" ]; then
-			if command -v yq >/dev/null 2>&1; then
-				# echo "[INFO] Merging mixin (yq): $trimmed"
-				# 使用 yq 进行深度合并并追加数组 (*+)
-				local tmp_merge="${config_path}.tmp"
-				if yq eval-all 'select(fileIndex == 0) *+ select(fileIndex == 1)' "$config_path" "$trimmed" > "$tmp_merge"; then
-					mv "$tmp_merge" "$config_path"
-				else
-					echo "[WARN] yq merge failed for $trimmed, falling back to append" >&2
-					rm -f "$tmp_merge"
-					{
-						echo ""
-						echo "# ---- mixin (fallback): ${trimmed} ----"
-						cat "$trimmed"
-					} >> "$config_path"
-				fi
-			else
-				# 回退逻辑
-				{
-					echo ""
-					echo "# ---- mixin: ${trimmed} ----"
-					cat "$trimmed"
-				} >> "$config_path"
-			fi
-		else
-			echo "[WARN] Mixin file not found: $trimmed" >&2
+		if [ "${trimmed:0:1}" != "/" ]; then
+
+			trimmed="$base_dir/$trimmed"
+
 		fi
+
+
+
+		if [ -f "$trimmed" ]; then
+
+			if [ "$has_tools" = "true" ]; then
+
+				echo "[INFO] Merging mixin (Python+yq): $trimmed"
+
+				local base_json="${config_path}.base.json"
+
+				local mixin_json="${config_path}.mixin.json"
+
+				local merged_json="${config_path}.merged.json"
+
+
+
+				# 转换、合并、还原
+
+				yq eval -o=json "$config_path" > "$base_json"
+
+				yq eval -o=json "$trimmed" > "$mixin_json"
+
+				
+
+				if python3 "$base_dir/scripts/merge_config.py" "$base_json" "$mixin_json" > "$merged_json"; then
+
+					yq eval -P "$merged_json" > "$config_path"
+
+					rm -f "$base_json" "$mixin_json" "$merged_json"
+
+				else
+
+					echo "[WARN] Python merge failed for $trimmed, falling back to append" >&2
+
+					rm -f "$base_json" "$mixin_json" "$merged_json"
+
+					{
+
+						echo ""
+
+						echo "# ---- mixin (fallback): ${trimmed} ----"
+
+						cat "$trimmed"
+
+					} >> "$config_path"
+
+				fi
+
+			else
+
+				# 无高级工具，回退到简单追加
+
+				{
+
+					echo ""
+
+					echo "# ---- mixin: ${trimmed} ----"
+
+					cat "$trimmed"
+
+				} >> "$config_path"
+
+			fi
+
+		else
+
+			echo "[WARN] Mixin file not found: $trimmed" >&2
+
+		fi
+
 	done
+
 }
