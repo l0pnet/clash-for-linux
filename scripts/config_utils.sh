@@ -127,15 +127,31 @@ apply_mixin_config() {
 
 
 
-								# 转换、合并、还原
+												# 转换、合并、还原
 
 
 
-								yq eval -o=json "$config_path" > "$base_json"
+												yq eval -o=json "$config_path" > "$base_json"
 
 
 
-								yq eval -o=json "$trimmed" > "$mixin_json"
+												yq eval -o=json "$trimmed" > "$mixin_json"
+
+
+
+												
+
+
+
+												# Debug: 打印文件状态
+
+
+
+												echo "[DEBUG] Base JSON size: $(wc -c <"$base_json" 2>/dev/null || echo 0)"
+
+
+
+												echo "[DEBUG] Mixin JSON size: $(wc -c <"$mixin_json" 2>/dev/null || echo 0)"
 
 
 
@@ -143,45 +159,119 @@ apply_mixin_config() {
 
 
 
-								# 容错：如果 JSON 文件为空（yq 转换失败或源文件为空），写入 {}
+												# 容错：如果 JSON 文件为空（yq 转换失败或源文件为空），写入 {}
 
 
 
-								[ -s "$base_json" ] || echo "{}" > "$base_json"
+												[ -s "$base_json" ] || echo "{}" > "$base_json"
 
 
 
-								[ -s "$mixin_json" ] || echo "{}" > "$mixin_json"
+												[ -s "$mixin_json" ] || echo "{}" > "$mixin_json"
 
 
 
-				
+								
 
 
 
-								if python3 "$base_dir/scripts/merge_config.py" "$base_json" "$mixin_json" > "$merged_json"; then
+												# 执行合并，捕获 stderr
 
-					yq eval -P "$merged_json" > "$config_path"
 
-					rm -f "$base_json" "$mixin_json" "$merged_json"
 
-				else
+												local py_err_file="${config_path}.py.err"
 
-					echo "[WARN] Python merge failed for $trimmed, falling back to append" >&2
 
-					rm -f "$base_json" "$mixin_json" "$merged_json"
 
-					{
+												if PYTHONIOENCODING=utf-8 python3 "$base_dir/scripts/merge_config.py" "$base_json" "$mixin_json" > "$merged_json" 2>"$py_err_file"; then
 
-						echo ""
 
-						echo "# ---- mixin (fallback): ${trimmed} ----"
 
-						cat "$trimmed"
+													echo "[DEBUG] Merged JSON size: $(wc -c <"$merged_json" 2>/dev/null || echo 0)"
 
-					} >> "$config_path"
 
-				fi
+
+													
+
+
+
+													if [ -s "$merged_json" ]; then
+
+
+
+														yq eval -P "$merged_json" > "$config_path"
+
+
+
+														echo "[DEBUG] Final YAML written to $config_path"
+
+
+
+													else
+
+
+
+														echo "[ERROR] Merged JSON is empty! Python script output nothing." >&2
+
+
+
+														cat "$py_err_file" >&2
+
+
+
+													fi
+
+
+
+													
+
+
+
+													# Debug: 暂时保留文件
+
+
+
+													# rm -f "$base_json" "$mixin_json" "$merged_json" "$py_err_file"
+
+
+
+												else
+
+
+
+													echo "[WARN] Python merge failed for $trimmed, falling back to append" >&2
+
+
+
+													cat "$py_err_file" >&2
+
+
+
+													rm -f "$base_json" "$mixin_json" "$merged_json" "$py_err_file"
+
+
+
+													{
+
+
+
+														echo ""
+
+
+
+														echo "# ---- mixin (fallback): ${trimmed} ----"
+
+
+
+														cat "$trimmed"
+
+
+
+													} >> "$config_path"
+
+
+
+												fi
 
 			else
 
