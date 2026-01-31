@@ -631,6 +631,9 @@ if grep -qE '^(proxies:|proxy-providers:|mixed-port:|port:)' "$Temp_Dir/clash.ya
   force_write_controller_and_ui "$Conf_Dir/config.yaml" || true
   force_write_secret "$Conf_Dir/config.yaml" || true
 
+  # 应用 Mixin 配置
+  apply_mixin_config "$Temp_Dir/config.yaml" "$Server_Dir"
+
   # 创建 UI 软链（systemd non-root 用 /tmp）
   Dashboard_Src="$Server_Dir/dashboard/public"
   if [ -d "$Dashboard_Src" ]; then
