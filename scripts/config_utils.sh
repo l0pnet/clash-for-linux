@@ -73,12 +73,31 @@ apply_mixin_config() {
 		if [ "${trimmed:0:1}" != "/" ]; then
 			trimmed="$base_dir/$trimmed"
 		fi
+
 		if [ -f "$trimmed" ]; then
-			{
-				echo ""
-				echo "# ---- mixin: ${trimmed} ----"
-				cat "$trimmed"
-			} >> "$config_path"
+			if command -v yq >/dev/null 2>&1; then
+				# echo "[INFO] Merging mixin (yq): $trimmed"
+				# 使用 yq 进行深度合并并追加数组 (*+)
+				local tmp_merge="${config_path}.tmp"
+				if yq eval-all 'select(fileIndex == 0) *+ select(fileIndex == 1)' "$config_path" "$trimmed" > "$tmp_merge"; then
+					mv "$tmp_merge" "$config_path"
+				else
+					echo "[WARN] yq merge failed for $trimmed, falling back to append" >&2
+					rm -f "$tmp_merge"
+					{
+						echo ""
+						echo "# ---- mixin (fallback): ${trimmed} ----"
+						cat "$trimmed"
+					} >> "$config_path"
+				fi
+			else
+				# 回退逻辑
+				{
+					echo ""
+					echo "# ---- mixin: ${trimmed} ----"
+					cat "$trimmed"
+				} >> "$config_path"
+			fi
 		else
 			echo "[WARN] Mixin file not found: $trimmed" >&2
 		fi

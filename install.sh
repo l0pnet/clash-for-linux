@@ -90,12 +90,48 @@ section() {
 }
 
 # =========================
+# 安装 yq 工具
+# =========================
+install_yq() {
+  if command -v yq >/dev/null 2>&1; then
+    ok "yq 已安装"
+    return 0
+  fi
+
+  info "正在安装 yq 工具..."
+  local arch
+  case "$CpuArch" in
+    "amd64"|"x86_64") arch="amd64" ;;
+    "arm64"|"aarch64") arch="arm64" ;;
+    "armv7l"|"armv7") arch="arm" ;;
+    *) err "不支持的 yq 架构: $CpuArch"; return 1 ;;
+  esac
+
+  local yq_url="https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}"
+  if ! curl -L "$yq_url" -o /usr/local/bin/yq; then
+    err "yq 下载失败，请检查网络或手动安装 yq 到 /usr/local/bin/yq"
+    return 1
+  fi
+
+  chmod +x /usr/local/bin/yq
+  ok "yq 安装成功"
+}
+
+# =========================
 # 前置校验
 # =========================
 if [ "$(id -u)" -ne 0 ]; then
   err "需要 root 权限执行安装脚本（请使用 sudo bash install.sh）"
   exit 1
 fi
+
+# 获取架构信息
+# shellcheck disable=SC1090
+source "${Server_Dir}/scripts/get_cpu_arch.sh"
+# 过滤掉输出中的 "CPU architecture: " 前缀
+CpuArch=$(echo "$CpuArch" | sed 's/CPU architecture: //')
+
+install_yq || true
 
 if [ ! -f "${Server_Dir}/.env" ]; then
   err "未找到 .env 文件，请确认脚本所在目录：${Server_Dir}"
