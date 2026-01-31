@@ -127,15 +127,39 @@ apply_mixin_config() {
 
 
 
-				# 转换、合并、还原
+								# 转换、合并、还原
 
-				yq eval -o=json "$config_path" > "$base_json"
 
-				yq eval -o=json "$trimmed" > "$mixin_json"
+
+								yq eval -o=json "$config_path" > "$base_json"
+
+
+
+								yq eval -o=json "$trimmed" > "$mixin_json"
+
+
+
+								
+
+
+
+								# 容错：如果 JSON 文件为空（yq 转换失败或源文件为空），写入 {}
+
+
+
+								[ -s "$base_json" ] || echo "{}" > "$base_json"
+
+
+
+								[ -s "$mixin_json" ] || echo "{}" > "$mixin_json"
+
+
 
 				
 
-				if python3 "$base_dir/scripts/merge_config.py" "$base_json" "$mixin_json" > "$merged_json"; then
+
+
+								if python3 "$base_dir/scripts/merge_config.py" "$base_json" "$mixin_json" > "$merged_json"; then
 
 					yq eval -P "$merged_json" > "$config_path"
 

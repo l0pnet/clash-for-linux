@@ -1,5 +1,6 @@
 import json
 import sys
+import os
 
 def deep_merge(base, mixin):
     """
@@ -13,7 +14,6 @@ def deep_merge(base, mixin):
                 base[k] = v
     elif isinstance(base, list) and isinstance(mixin, list):
         # 如果是列表，尝试根据 'name' 字段合并
-        # 创建一个 base 列表的索引图
         base_map = {}
         for i, item in enumerate(base):
             if isinstance(item, dict) and 'name' in item:
@@ -28,19 +28,39 @@ def deep_merge(base, mixin):
                 # 否则追加到列表末尾
                 base.append(item)
     else:
-        # 非字典或列表，直接覆盖
         return mixin
     return base
 
+def load_json_safe(path):
+    """安全读取 JSON 文件，失败返回空字典"""
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return {}
+    try:
+        with open(path, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        # 如果解析失败（可能是空文件或格式错误），返回空字典
+        return {}
+    except Exception as e:
+        sys.stderr.write(f"[WARN] Failed to load {path}: {e}\n")
+        return {}
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        sys.exit(1)
+        # 如果参数不够，打印空 JSON 并退出，保证管道不报错
+        print("{}")
+        sys.exit(0)
     
-    with open(sys.argv[1], 'r') as f:
-        base_data = json.load(f)
+    base_data = load_json_safe(sys.argv[1])
+    mixin_data = load_json_safe(sys.argv[2])
     
-    with open(sys.argv[2], 'r') as f:
-        mixin_data = json.load(f)
-    
-    result = deep_merge(base_data, mixin_data)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    # 如果两个都是空的，输出空对象
+    if not base_data and not mixin_data:
+        print("{}")
+    elif not mixin_data:
+        print(json.dumps(base_data, ensure_ascii=False, indent=2))
+    elif not base_data:
+        print(json.dumps(mixin_data, ensure_ascii=False, indent=2))
+    else:
+        result = deep_merge(base_data, mixin_data)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
