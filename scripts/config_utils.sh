@@ -61,6 +61,9 @@ apply_mixin_config() {
 	echo "[DEBUG] Applying mixins to: $config_path"
 
 	local mixin_dir="${CLASH_MIXIN_DIR:-$base_dir/conf/mixin.d}"
+	echo "[DEBUG] Searching mixins in: $mixin_dir"
+	echo "[DEBUG] Files in $mixin_dir: $(ls "$mixin_dir" 2>/dev/null | tr '\n' ' ')"
+
 	local mixin_paths=()
 
 	if [ -n "${CLASH_MIXIN_PATHS:-}" ]; then
