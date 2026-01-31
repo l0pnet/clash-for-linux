@@ -634,6 +634,9 @@ if grep -qE '^(proxies:|proxy-providers:|mixed-port:|port:)' "$Temp_Dir/clash.ya
   # 应用 Mixin 配置
   apply_mixin_config "$Temp_Dir/config.yaml" "$Server_Dir"
 
+  # 关键修复：将合并后的配置同步到 conf/config.yaml，确保启动时生效
+  cp -f "$Temp_Dir/config.yaml" "$Conf_Dir/config.yaml"
+
   # 创建 UI 软链（systemd non-root 用 /tmp）
   Dashboard_Src="$Server_Dir/dashboard/public"
   if [ -d "$Dashboard_Src" ]; then
