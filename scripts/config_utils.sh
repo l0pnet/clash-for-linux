@@ -49,17 +49,19 @@ apply_tun_config() {
 }
 
 apply_mixin_config() {
-
-	local config_path="
-"
-
+	local config_path="$1"
 	local base_dir="${2:-$Server_Dir}"
+	
+	# 参数校验：防止空路径导致生成 .base.json 等异常文件
+	if [ -z "$config_path" ]; then
+		echo "[ERROR] apply_mixin_config called with empty config_path!" >&2
+		return 1
+	fi
+	
+	echo "[DEBUG] Applying mixins to: $config_path"
 
 	local mixin_dir="${CLASH_MIXIN_DIR:-$base_dir/conf/mixin.d}"
-
 	local mixin_paths=()
-
-
 
 	if [ -n "${CLASH_MIXIN_PATHS:-}" ]; then
 
